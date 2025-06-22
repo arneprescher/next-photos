@@ -6,7 +6,8 @@ use DateTime;
 
 class Photo {
 	private $path;
-	private $exifData;
+	private $exifData = [];
+	public $mediaType = 'image';
 
 	public function __construct($path, $exifData = null) {
 		$this->path = $path;

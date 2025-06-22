@@ -81,66 +81,7 @@ try {
 <head>
 	<meta charset="UTF-8">
 	<title>Edit Photo</title>
-	<style>
-		body {
-			font-family: sans-serif;
-			margin: 2em;
-		}
-
-		.container {
-			display: flex;
-			gap: 20px;
-			align-items: flex-start;
-		}
-
-		.photo-view img {
-			max-width: 60vw;
-			max-height: 80vh;
-			border: 1px solid #ccc;
-		}
-
-		.form-group {
-			margin-bottom: 15px;
-		}
-
-		label {
-			display: block;
-			font-weight: bold;
-			margin-bottom: 5px;
-		}
-
-		textarea,
-		select,
-		button {
-			width: 100%;
-			padding: 8px;
-			box-sizing: border-box;
-		}
-
-		.message {
-			padding: 10px;
-			background-color: #eef;
-			border: 1px solid #aac;
-			margin-bottom: 20px;
-		}
-
-		.exif-table {
-			border-collapse: collapse;
-			width: 100%;
-		}
-
-		.exif-table th,
-		.exif-table td {
-			border: 1px solid #ddd;
-			padding: 8px;
-			text-align: left;
-		}
-
-		.exif-table th {
-			background-color: #f2f2f2;
-			width: 150px;
-		}
-	</style>
+	<link rel="stylesheet" href="assets/edit.css">
 </head>
 
 <body>

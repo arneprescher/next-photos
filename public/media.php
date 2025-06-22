@@ -33,6 +33,10 @@ if ($extension === 'jpg' || $extension === 'jpeg') {
 	$contentType = 'image/jpeg';
 } elseif ($extension === 'png') {
 	$contentType = 'image/png';
+} elseif (in_array($extension, ['mp4', 'webm'])) {
+	$contentType = 'video/' . $extension;
+} elseif ($extension === 'mov') {
+	$contentType = 'video/quicktime';
 } else {
 	http_response_code(415);
 	exit;

@@ -167,11 +167,20 @@ class NextcloudClient {
 		if ($fp) {
 			while (($line = fgets($fp)) !== false) {
 				$data = json_decode($line, true);
-				if (empty($data['path']) || !isset($data['exifData']) || isset($data['exifData']['error'])) {
+
+				// Skip malformed lines
+				if (!is_array($data)) {
+					continue;
+				}
+
+				$mediaType = $data['mediaType'] ?? 'image';
+
+				if (empty($data['path']) || (empty($data['exifData']) && $mediaType !== 'video') || isset($data['exifData']['error'])) {
 					continue;
 				}
 				$photo = new Photo($data['path']);
 				$photo->setExifData($data['exifData']);
+				$photo->mediaType = $mediaType;
 				$photos[] = $photo;
 			}
 			fclose($fp);
@@ -311,28 +320,37 @@ class NextcloudClient {
 		foreach ($pathsToProcess as $photoInfo) {
 			$relativePath = $photoInfo['path'];
 			$fileSize = $photoInfo['size'];
+			$extension = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
+			$isPotentialVideo = in_array($extension, ['mp4', 'mov', 'avi', 'webm']) || (isset($photoInfo['contentType']) && strpos($photoInfo['contentType'], 'video/') === 0);
+
 			try {
-				// Check file size BEFORE downloading.
-				if ($fileSize > 20 * 1024 * 1024) { // 20MB limit
+				// Check file size BEFORE downloading. A larger limit for videos.
+				$limit = $isPotentialVideo ? 500 * 1024 * 1024 : 50 * 1024 * 1024; // 500MB for videos, 20MB for images
+				if ($fileSize > $limit) {
+					$mediaType = $isPotentialVideo ? 'video' : 'image';
 					$exifData = ['error' => 'File skipped, too large.'];
-					$dataToWrite = ['path' => $relativePath, 'exifData' => $exifData];
+					$dataToWrite = ['path' => $relativePath, 'mediaType' => $mediaType, 'exifData' => $exifData];
 					fwrite($fp, json_encode($dataToWrite) . PHP_EOL);
 					continue; // Skip to next file
 				}
 
 				$fileContent = $this->getFile($relativePath);
 				$exifData = [];
-				$extension = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
+				$mediaType = 'image'; // Default to image
 
-				if ($fileContent && ($extension === 'jpg' || $extension === 'jpeg' || $extension === 'png')) {
-					// For PNGs, we can't get EXIF, but we can get dimensions.
-					if ($extension === 'png') {
+				if ($fileContent) {
+					// Check for video types first by extension, then by content type
+					if ($isPotentialVideo) {
+						$mediaType = 'video';
+						// No metadata extraction for videos for now.
+					} elseif ($extension === 'png') {
+						// For PNGs, we can't get EXIF, but we can get dimensions.
 						$imageInfo = getimagesizefromstring($fileContent);
 						if ($imageInfo) {
 							$exifData['Width'] = $imageInfo[0];
 							$exifData['Height'] = $imageInfo[1];
 						}
-					} else {
+					} elseif ($extension === 'jpg' || $extension === 'jpeg') {
 						// For JPEGs, use the PEL library to extract detailed EXIF data.
 						$tmpFile = tempnam(sys_get_temp_dir(), 'pel_');
 						file_put_contents($tmpFile, $fileContent);
@@ -447,7 +465,7 @@ class NextcloudClient {
 					$exifData = ['error' => 'File is not a supported image or could not be downloaded.'];
 				}
 
-				$dataToWrite = ['path' => $relativePath, 'exifData' => $exifData];
+				$dataToWrite = ['path' => $relativePath, 'mediaType' => $mediaType, 'exifData' => $exifData];
 				fwrite($fp, json_encode($dataToWrite) . PHP_EOL);
 
 				// Aggressively free memory after each photo. This is a safeguard against
@@ -457,7 +475,7 @@ class NextcloudClient {
 				gc_collect_cycles(); // Force garbage collection
 			} catch (\Exception $e) {
 				error_log("Error processing $relativePath: " . $e->getMessage());
-				$dataToWrite = ['path' => $relativePath, 'exifData' => ['error' => $e->getMessage()]];
+				$dataToWrite = ['path' => $relativePath, 'mediaType' => 'image', 'exifData' => ['error' => $e->getMessage()]];
 				fwrite($fp, json_encode($dataToWrite) . PHP_EOL);
 			}
 		}
@@ -472,6 +490,20 @@ class NextcloudClient {
 		}
 
 		return ['status' => 'caching', 'processed' => $newProcessedCount, 'total' => $totalCount];
+	}
+
+	/**
+	 * Cancels an ongoing caching process by deleting the photo list file.
+	 *
+	 * @return array The status after attempting to cancel.
+	 */
+	public function cancelPhotoCache() {
+		$photoListFile = $this->cacheDir . '/photolist.json';
+		if (file_exists($photoListFile)) {
+			unlink($photoListFile);
+			return ['status' => 'cancelled', 'message' => 'Cache process cancelled.'];
+		}
+		return ['status' => 'idle', 'message' => 'No active cache process to cancel.'];
 	}
 
 	/**
@@ -545,6 +577,7 @@ class NextcloudClient {
 		if ($xml === false) {
 			return [];
 		}
+
 		$xml->registerXPathNamespace('d', 'DAV:');
 		$responses = $xml->xpath('//d:response');
 		$paths = [];
@@ -567,9 +600,9 @@ class NextcloudClient {
 			if (rtrim($relativePath, '/') === rtrim($folderPath, '/')) {
 				continue;
 			}
-			if (stripos($contentType, 'image/') === 0) {
+			if (stripos($contentType, 'image/') === 0 || stripos($contentType, 'video/') === 0) {
 				$contentLength = count($contentLengthNodes) > 0 ? (int)$contentLengthNodes[0] : 0;
-				$paths[] = ['path' => $relativePath, 'size' => $contentLength];
+				$paths[] = ['path' => $relativePath, 'size' => $contentLength, 'contentType' => $contentType];
 			}
 		}
 		return $paths;

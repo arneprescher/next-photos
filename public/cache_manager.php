@@ -77,6 +77,10 @@ try {
 			$response = $client->processPhotoCacheBatch($offset);
 			break;
 
+		case 'cancel':
+			$response = $client->cancelPhotoCache();
+			break;
+
 		case 'status':
 			$response = $client->getCacheStatus();
 			break;
