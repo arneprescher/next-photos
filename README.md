@@ -8,25 +8,38 @@ This project was developed to provide a fast and responsive interface for large 
 
 ## Features
 
-*   **Performant Gallery View:** Displays all images from a specified Nextcloud folder in a grid view.
-*   **Efficient Caching:** Metadata (EXIF information, image dimensions) is cached in a server-side file (`metadata.json`). Image thumbnails are also cached to dramatically reduce loading times.
+*   **Performant Gallery View:** Displays all media from a specified Nextcloud folder in a grid view.
+*   **Video Support:** Natively displays common video formats (MP4, MOV, etc.) alongside images.
+*   **Efficient Caching:** Metadata (EXIF information, image dimensions) is cached in a server-side file (`metadata.json`). Media thumbnails are also cached to dramatically reduce loading times.
 *   **Asynchronous Loading:** The cache is built in the background via an AJAX interface, without blocking the website. A progress bar informs the user of the status.
-*   **Lazy Loading:** Images are only loaded when they scroll into the user's viewport, minimizing the initial page load time.
+*   **Lazy Loading:** Media files are only loaded when they scroll into the user's viewport, minimizing the initial page load time.
 *   **EXIF Data:** Reads and displays important EXIF data from JPEG images (camera model, exposure time, aperture, GPS coordinates, etc.).
 *   **PNG Support:** Also displays PNG images in the gallery (without EXIF data).
-*   **Secure Proxy:** Nextcloud credentials are never exposed to the frontend. A PHP backend acts as a secure proxy to fetch the images from the server.
+*   **Secure Proxy:** Nextcloud credentials are never exposed to the frontend. A PHP backend acts as a secure proxy to fetch the media from the server.
+*   **Simple Editing:** Allows updating image descriptions directly from the detail view.
 
 ## Technical Architecture
 
-The core of the application is a two-stage caching process designed for stability and performance with large numbers of images:
+The core of the application is a two-stage caching process designed for stability and performance with large numbers of media files:
 
-1.  **Initialization (`init`):** First, a list of all image paths is fetched from the Nextcloud directory. This step uses a `curl` command via `shell_exec`, as this proved to be the most stable method for recursive queries. The list is saved in `photolist.json`.
-2.  **Processing (`process`):** A JavaScript client repeatedly calls the `process` action. Each call processes a small batch of photos (e.g., 5):
-    *   The image is downloaded from Nextcloud.
+1.  **Initialization (`init`):** First, a list of all media paths (images and videos) is fetched from the Nextcloud directory. This step uses a `curl` command via `shell_exec`, as this proved to be the most stable method for recursive queries. The list is saved in `cache/photolist.json`.
+2.  **Processing (`process`):** A JavaScript client repeatedly calls the `process` action. Each call processes a small batch of files (e.g., 5):
+    *   The file is downloaded from Nextcloud (respecting different size limits for images vs. videos).
     *   Metadata is extracted (EXIF for JPEGs, dimensions for PNGs).
     *   The extracted data is appended as a single line to the `metadata.json` file (JSONL format).
 
 This approach prevents PHP timeouts and "Memory Limit" errors, as only a small amount of data is held in memory at any time.
+
+### Code Structure
+*   `public/`: The web server's document root.
+    *   `index.php`: The main gallery view.
+    *   `edit.php`: The page for editing photo details.
+    *   `media.php`: A secure script that serves media files (images/videos) from Nextcloud.
+    *   `cache_manager.php`: Handles the AJAX requests for the caching process.
+    *   `assets/`: Contains external CSS and JavaScript files.
+*   `src/`: Contains the core PHP classes (`NextcloudClient.php`, `Photo.php`).
+*   `cache/`: Stores the `photolist.json` and `metadata.json` files, as well as cached image thumbnails. This directory must be writable by the web server.
+*   `vendor/`: Composer dependencies.
 
 ## Installation
 
@@ -52,7 +65,8 @@ This approach prevents PHP timeouts and "Memory Limit" errors, as only a small a
     // Your Nextcloud username
     define('NEXTCLOUD_USERNAME', 'your_user');
 
-    // An app-specific password created for this application
+    // An app-specific password created for this application.
+    // You can generate this in your Nextcloud account under Settings > Security > Devices & sessions.
     // IMPORTANT: Do not use your regular password here!
     define('NEXTCLOUD_PASSWORD', 'your-app-password');
 
