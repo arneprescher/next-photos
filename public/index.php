@@ -71,7 +71,6 @@ $cacheStatus = $client->getCacheStatus();
 						<?php else: ?>
 							<img data-src="media.php?path=<?= urlencode($photo->getPath()) ?>" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="<?= htmlspecialchars($photo->getFilename()) ?>">
 						<?php endif; ?>
-						<div class="gallery-item-caption"><?= htmlspecialchars($photo->getFilename()) ?></div>
 					</a>
 				</div>
 			<?php endforeach; ?>
