@@ -48,10 +48,11 @@ $cacheStatus = $client->getCacheStatus();
 </head>
 
 <body>
-	<h1>Nextcloud Photos</h1>
-
 	<div class="controls">
-		<button id="refresh-cache-btn">Refresh Gallery Cache</button>
+		<button id="refresh-cache-btn" class="icon-btn icon-btn--danger">
+			<span class="icon-btn__icon"></span>
+			<span class="sr-only">Refresh Gallery Cache</span>
+		</button>
 		<button id="cancel-cache-btn" style="display: none;">Cancel Caching</button>
 		<div class="progress-container" id="progress-container">
 			<p id="progress-text">Caching photos...</p>
